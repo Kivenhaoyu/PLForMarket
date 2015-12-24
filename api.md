@@ -206,7 +206,7 @@ API_UNAUTHORIZED
 GET /users/<int user_id>
 Authorization: Basic Auth
 ```
-- `user_id` 用户id
+- `user_id`： `int`类型，用户id
 
 **成功**
 
@@ -235,6 +235,7 @@ API_USER_NOT_FOUND
 GET /users/<int user_id>/stauts
 Authorization: Basic Auth
 ```
+- `user_id`： `int`类型，用户id
 
 **成功**
 
@@ -269,6 +270,7 @@ API_USER_NOT_FOUND
 GET /users/<int user_id>/published
 Authorization: Basic Auth
 ```
+- `user_id`： `int`类型，用户id
 
 **成功**
 
@@ -285,7 +287,7 @@ Authorization: Basic Auth
 }
 ```
 - `count`： `int`类型，用户所有已结束推流的频道数
-- `published_channels`： 数组，其中的每一个元素为`channel`。
+- `published_channels`： 数组，其中的每一个元素为`channel`，定义见[这里](#channel-definition)。
 
 特别的，当`count`为`0`时，`published_channels`为`null`
 
@@ -302,6 +304,7 @@ API_UNAUTHORIZED
 GET /users/<int user_id>/publishing
 Authorization: Basic Auth
 ```
+- `user_id`： `int`类型，用户id
 
 **成功**
 
@@ -355,7 +358,7 @@ API_UNAUTHORIZED
 - `duration`： `int`类型，频道的持续时间，单位秒。未结束时为None
 - `orientation`： `int`类型，屏幕方向，由前端给出
 - `quality`： `ini`类型，画质，由前端给出
-- `status`： `int`类型，频道状态
+- `status`： `int`类型，[频道状态](#channel-status)<a name="channel-status-definition"></a>
 	- `0`：新建，尚未推流
 	- `1`：推流中
 	- `2`：已结束推流
@@ -446,3 +449,271 @@ API_MAX_CHANNEL_TOUCHED
 
 - `API_BAD_REQUEST`： 请检查`title`, `quality`, `orientation`是否在请求体中并格式正确。
 - `API_MAX_CHANNEL_TOUCHED`： 频道数达到管理员设置的最大频道数
+
+#### 获取频道信息
+**请求**
+
+```
+GET /channels/<int channel_id>
+Authorization: Basic Auth
+```
+
+- `channel_id`： `int`类型，频道id
+
+**成功**
+
+```
+{
+	"code": 2000,
+	"desc": "ok",
+	"channel": <channel>,
+	"stream": <stream>
+}
+```
+
+- `channel`： `channel`类型，本次创建的频道信息，定义见[这里](#channel-definition)
+- `stream`： `stream`类型，本次创建的频道对应的流信息，定义见[这里](#stream-definition)
+
+**失败**
+
+```
+API_UNAUTHORIZED
+API_CHANNEL_NOT_FOUND
+```
+
+<a name="#channel-status"></a>
+#### 获取频道状态
+
+在目前的设计（v1.0.1）中，频道有五种可能的状态：
+
+- `initiate`： 新建状态，这时用户还没有提起推流请求。一个用户只可能拥有至多一个处于`initiate`状态的频道，一旦一个频道被新建了但是没有进行推流，它将会在下一个新建频道的请求到来后被删除。
+
+- `publishing`： 正在推流状态。只有一个处于`initiate`状态的频道可以被提出推流申请，对任何非`initiate`状态的频道提出推流申请都将被服务器拒绝。一个用户只可能拥有至多一个处于`publishing`状态的频道，此后任何新的对该用户的`initiate`状态频道的推流申请都将强制打断当前处于`publishing`状态的这个频道。
+
+- `published`： 结束推流状态。只有一个处于`publishing`状态的频道可以被提出结束推流申请。一个用户可以拥有多个处于`published`状态的频道。
+
+- `closed`：关闭状态。用户可以关闭自己（一般是处于`published`状态）的频道，被关闭的频道将不会被任何其他用户查看。
+
+- `banned`：禁止状态。管理员可以禁止用户的频道，被禁止的频道将会被强制中断直播（如果处于`publishing`状态），并且不能被回放。
+
+**请求**
+
+```
+GET /channels/<int channel_id>/status
+Authorization: Basic Auth
+```
+
+- `channel_id`： `int`类型，频道id
+
+**成功**
+
+```
+{
+	"code": 2000,
+	"desc": "ok",
+	"status": <int status>
+}
+```
+
+- `status`： `int`类型，频道的[状态](#channel-status)，定义见[这里](#channel-status-definition)
+
+**失败**
+
+```
+API_UNAUTHORIZED
+API_CHANNEL_NOT_FOUND
+```
+
+#### 开始推流
+
+**请求**
+
+```
+POST /channels/<int channel_id>/publish
+Authorization: Basic Auth
+```
+
+- `channel_id`： `int`类型，频道id
+
+**成功**
+
+```
+{
+	"code": 2000,
+	"desc": "ok",
+}
+```
+
+**失败**
+
+```
+API_UNAUTHORIZED
+API_CHANNEL_NOT_FOUND
+API_BAD_REQUEST
+```
+
+- `API_UNAUTHORIZED`： 如果请求的用户和申请推流频道的所有者不是同一人，也会返回未授权。
+- `API_BAD_REQUEST`： 频道未处于`initiate`[状态](#channel-status)
+
+#### 结束推流
+
+**请求**
+
+```
+POST /channels/<int channel_id>/finish
+Authorization: Basic Auth
+```
+
+- `channel_id`： `int`类型，频道id
+
+**成功**
+
+```
+{
+	"code": 2000,
+	"desc": "ok",
+}
+```
+
+**失败**
+
+```
+API_UNAUTHORIZED
+API_CHANNEL_NOT_FOUND
+API_BAD_REQUEST
+```
+
+- `API_UNAUTHORIZED`： 如果请求的用户和申请结束推流频道的所有者不是同一人，也会返回未授权。
+- `API_BAD_REQUEST`： 频道未处于`publishing`[状态](#channel-status)
+
+#### 获取所有正在直播的频道列表[TODO:分页]
+
+**请求**
+
+```
+GET /channels/publishing
+Authorization: Basic Auth
+```
+
+**成功**
+
+```
+{
+	"code": 2000,
+	"desc": "ok",
+	"count": <int count>,
+	"publishing_channels":[
+		<channel c1>,
+		<channel c2>,
+		...
+	]
+}
+```
+- `count`： `int`类型，用户所有已结束推流的频道数
+- `publishing_channels`： 数组，其中的每一个元素为`channel`，定义见[这里](#channel-definition)。
+
+特别的，当`count`为`0`时，`publishing_channels`为`null`
+
+**失败**
+
+```
+API_UNAUTHORIZED
+```
+
+#### 获取所有已经结束直播的频道列表[TODO:分页]
+
+**请求**
+
+```
+GET /channels/published
+Authorization: Basic Auth
+```
+
+**成功**
+
+```
+{
+	"code": 2000,
+	"desc": "ok",
+	"count": <int count>,
+	"published_channels":[
+		<channel c1>,
+		<channel c2>,
+		...
+	]
+}
+```
+- `count`： `int`类型，用户所有已结束推流的频道数
+- `published_channels`： 数组，其中的每一个元素为`channel`，定义见[这里](#channel-definition)。
+
+特别的，当`count`为`0`时，`published_channels`为`null`
+
+**失败**
+
+```
+API_UNAUTHORIZED
+```
+
+#### 获取指定频道的直播地址
+
+**请求**
+
+```
+GET /channels/<int channel_id>/live
+Authorization: Basic Auth
+```
+
+- `channel_id`： `int`类型，频道id
+
+**成功**
+
+```
+{
+  "code": 2000,
+  "desc": "ok",
+  "flv": "http://pili-live-hdl.live.golanghome.com/hub/stream-id.flv",
+  "hls": "http://pili-live-hls.live.golanghome.com/hub/stream-id.m3u8",
+  "rtmp": "rtmp://pili-live-rtmp.live.golanghome.com/hub/stream-id"
+}
+```
+
+**失败**
+
+```
+API_UNAUTHORIZED
+API_CHANNEL_NOT_FOUND
+API_BAD_REQUEST
+```
+
+- `API_BAD_REQUEST`： 频道不处于`publishing`[状态](#channel-status)
+
+#### 获取指定频道的回放地址
+
+**请求**
+
+```
+GET /channels/<int channel_id>/playback
+Authorization: Basic Auth
+```
+
+- `channel_id`： `int`类型，频道id
+
+**成功**
+
+```
+{
+  "code": 2000,
+  "desc": "ok",
+  "hls": "http://pili-playback.live.golanghome.com/hub/stream-id.m3u8?start=timestamp&end=timestamp"
+}
+```
+
+**失败**
+
+```
+API_UNAUTHORIZED
+API_CHANNEL_NOT_FOUND
+API_BAD_REQUEST
+```
+
+- `API_BAD_REQUEST`： 频道不处于`publishing`或`published`[状态](#channel-status)
