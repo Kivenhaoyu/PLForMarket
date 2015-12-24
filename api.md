@@ -63,7 +63,9 @@
 |`API_BAD_REQUEST`|4000|bad request|请求的参数缺失或格式不符|
 |`API_UNAUTHORIZED`|4010|unauthorized|未授权，一般是因为`api_key`不正确|
 |`API_INVALID_AUTH_CODE`|4011|invalid auth code|错误的手机验证码|
+|`API_MAX_CHANNEL_TOUCHED`|4031|touch maximum number of channels|达到最大频道数量|
 |`API_USER_NOT_FOUND`|4041|user not found|用户未找到|
+|`API_CHANNEL_NOT_FOUND`|4042|channel not found|频道未找到|
 
 <a name='api-list'></a>
 ## API
@@ -77,7 +79,7 @@
 **请求**
 
 ```
-GET /auth/code?mobile=<mobile>
+GET /users/auth-code?mobile=<mobile>
 ```
 - `mobile` 用户的手机号
 
@@ -94,21 +96,19 @@ GET /auth/code?mobile=<mobile>
 **失败**
 
 ```
-{
-	"code": 4000,
-	"desc": <string desc>
-}
+API_BAD_REQUEST
 ```
-- `desc`： `string`类型，根据不同场景可能表达以下含义
-	- 缺少参数`mobile`
-	- `mobile`格式不正确，无法获取手机验证码
+根据不同场景可能表达以下含义，详见`desc`字段的描述：
+
+- 缺少参数`mobile`
+- `mobile`格式不正确，无法获取手机验证码
 
 <a name='login_via_auth_code'></a>
 #### 登录（校验手机验证码是否正确）
 **请求**
 
 ```
-POST /auth/login
+POST /users/login
 Content-Type: application/json
 
 {
@@ -126,29 +126,28 @@ Content-Type: application/json
   "code": 1000, 
   "desc": "ok", 
   "api_key": <string api_key>, 
-  "mobile": <string mobile>
+  "mobile": <string mobile>,
+  "id": <int id>
 }
 ```
 表示用户通过验证，此时请求中的`auth_code`过期作废。
 
 - `api_key`： `string`类型，用户本次[生命周期](#token-life-circle)中用于[鉴权](#authentication)的秘钥
 - `mobile`：`string`类型，用户登录使用的手机号码
+- `id`： `int`类型，用户的id
 
 **失败**
 
 ```
-{
-	"code": 4011,
-	"desc": "invalid auth code"
-}
+API_INVALID_AUTH_CODE
 ```
-表示用户填写的验证码错误。
+错误的验证码。
 
 #### 登出
 **请求**
 
 ```
-POST /auth/logout
+POST /users/logout
 Authorization: Basic Auth
 ```
 
@@ -165,9 +164,285 @@ Authorization: Basic Auth
 **失败**
 
 ```
-{
-	"code": 4010,
-	"desc": "unauthorized"
-}
+API_UNAUTHORIZED
 ```
 未带授权，登出失败。
+
+----
+
+### 用户相关
+
+<a name="user-definition"></a>
+#### 类型声明：`user`
+在返回结果中，`user`的格式如下：
+
+```
+{
+	 "id": <int id>,
+    "avatar": <string avatar>,
+    "email": <string email>,
+    "gender": <int gender>,
+    "mobile": <string mobile>,
+    "name": <string name>,
+    "nickname": <strng nickname>
+}
+```
+- `id`： `int`类型，用户id
+- `avatar`： `string`类型，用户的头像对应的url
+- `email`： `string`类型，用户的电子邮箱（优先级：七牛帐号对应邮箱 > Github帐号对应邮箱）
+- `gender`： `int`类型，用户的性别
+	- `0`：unknown
+	- `1`：male
+	- `2`：female
+- `mobile`： `string`类型，用户的手机号
+- `name`： `string`类型，用户名称
+- `nickname`： `string`类型，用户昵称
+
+
+#### 获取用户信息
+**请求**
+
+```
+GET /users/<int user_id>
+Authorization: Basic Auth
+```
+- `user_id` 用户id
+
+**成功**
+
+```
+{
+	"code": 2000,
+	"desc": "ok",
+	"user": <user>
+}
+```
+- `user`：`user`类型（[定义](#user-definition)），用户的信息
+
+**失败**
+
+```
+API_UNAUTHORIZED
+API_USER_NOT_FOUND
+```
+
+#### 获取用户状态
+用户状态包括`流状态`和`用户禁用状态`两部分。
+
+**请求**
+
+```
+GET /users/<int user_id>/stauts
+Authorization: Basic Auth
+```
+
+**成功**
+
+```
+{
+	"code": 2000,
+	"desc": "ok",
+	"is_active": <bool is_active>,
+	"stream_status": <int stream_status>
+}
+```
+
+- `is_active`： `bool`类型
+	- `true`：激活状态
+	- `false`：禁用状态
+- `stream_status`： `int`类型，用户所持有的流状态
+	- `0`：用户没有创建过流（创建频道后生成）
+	- `1`：用户的流处于不可用状态（被占据、被禁用等，不应创建频道）
+	- `2`：用户的流可用（可以新建频道）
+
+**失败**
+
+```
+API_UNAUTHORIZED
+API_USER_NOT_FOUND
+```
+
+#### 获取指定用户的所有已结束推流的频道[TODO:分页]
+**请求**
+
+```
+GET /users/<int user_id>/published
+Authorization: Basic Auth
+```
+
+**成功**
+
+```
+{
+	"code": 2000,
+	"desc": "ok",
+	"count": <int count>,
+	"published_channels":[
+		<channel c1>,
+		<channel c2>,
+		...
+	]
+}
+```
+- `count`： `int`类型，用户所有已结束推流的频道数
+- `published_channels`： 数组，其中的每一个元素为`channel`。
+
+特别的，当`count`为`0`时，`published_channels`为`null`
+
+**失败**
+
+```
+API_UNAUTHORIZED
+```
+
+#### 获取指定用户的正在推流的频道
+**请求**
+
+```
+GET /users/<int user_id>/publishing
+Authorization: Basic Auth
+```
+
+**成功**
+
+```
+{
+	"code": 2000,
+	"desc": "ok",
+	"publishing_channel":<channel>
+}
+```
+
+- `publishing_channel`： `channel`类型，定义见[这里](#channel-definition)
+
+特别的，如果没有正在推流的频道，则`publishing_channel`为`null`
+
+**失败**
+
+```
+API_UNAUTHORIZED
+```
+
+----
+
+### 频道相关
+
+<a name="channel-definition"></a>
+#### 类型声明：`channel`
+在返回结果中，`channel`的格式如下：
+
+```
+{
+	"id": <int id>,
+	"title": <string title>,
+	"thumbnail": <string thumbnail>,
+	"desc": <string desc>,
+  	"duration": <int duration>,
+  	"orientation": <int orientation>,
+  	"quality": <int quality>,
+  	"status": <int status>,
+  	"owner": <user>,  
+	"started_at": <timestamp statred_at>,
+  	"stopped_at": <timestamp stopped_at>,
+  	"created_at": <timestamp created_at>
+}
+```
+
+- `id`： `int`类型，频道id
+- `title`： `string`类型，频道标题
+- `thumbnail`： `string`类型，频道缩略图对应url
+- `desc`： `string`类型，频道描述
+- `duration`： `int`类型，频道的持续时间，单位秒。未结束时为None
+- `orientation`： `int`类型，屏幕方向，由前端给出
+- `quality`： `ini`类型，画质，由前端给出
+- `status`： `int`类型，频道状态
+	- `0`：新建，尚未推流
+	- `1`：推流中
+	- `2`：已结束推流
+	- `3`：关闭（由频道拥有者操作）
+	- `4`：禁止（由管理员操作）
+- `owner`：`user`类型（[定义](#user-definition)），频道的拥有者
+- `started_at`： `timestamp`类型，开始推流的时间
+- `stopped_at`： `timestamp`类型，结束推流的时间
+- `created_at`： `timestamp`类型，频道创建的时间
+
+<a name="stream-definition"></a>
+#### 类型声明：`stream`
+`stream`是由 *pili* 服务器返回的模型。在返回结果中，`stream`的格式形如：
+
+```
+{
+	"createdAt": "2015-12-23T16:23:33.086+08:00",
+    "disabled": false,
+    "disabledTill": 0,
+    "hosts": {
+      "live": {
+        "hdl": "pili-live-hdl.live.golanghome.com",
+        "hls": "pili-live-hls.live.golanghome.com",
+        "http": "pili-live-hls.live.golanghome.com",
+        "rtmp": "pili-live-rtmp.live.golanghome.com"
+      },
+      "play": {
+        "http": "pili-live-hls.live.golanghome.com",
+        "rtmp": "pili-live-rtmp.live.golanghome.com"
+      },
+      "playback": {
+        "hls": "pili-playback.live.golanghome.com",
+        "http": "pili-playback.live.golanghome.com"
+      },
+      "publish": {
+        "rtmp": "pili-publish.live.golanghome.com"
+      }
+    },
+    "hub": "jinxinxin",
+    "id": "z1.jinxinxin.567a5a05d409d266f3000003",
+    "publishKey": "7a2f7f10cab7a706",
+    "publishSecurity": "static",
+    "title": "567a5a05d409d266f3000003",
+    "updatedAt": "2015-12-23T16:23:33.086+08:00"
+}
+```
+
+#### 创建频道
+**请求**
+
+```
+POST /channels
+Authorization: Basic Auth
+Content-Type: application/json
+
+{
+	"title": <string title>,
+	"quality": <int quality>,
+	"orientation": <int orientation>
+}
+```
+
+- `title`： `string`类型，频道的标题
+- `quality`： `int`类型，直播的清晰度
+- `orientation`： `int`类型，直播的屏幕方向
+
+**成功**
+
+```
+{
+	"code": 2000,
+	"desc": "ok",
+	"channel": <channel>,
+	"stream": <stream>
+}
+```
+
+- `channel`： `channel`类型，本次创建的频道信息，定义见[这里](#channel-definition)
+- `stream`： `stream`类型，本次创建的频道对应的流信息，定义见[这里](#stream-definition)
+
+**失败**
+
+```
+API_UNAUTHORIZED
+API_BAD_REQUEST
+API_MAX_CHANNEL_TOUCHED
+```
+
+- `API_BAD_REQUEST`： 请检查`title`, `quality`, `orientation`是否在请求体中并格式正确。
+- `API_MAX_CHANNEL_TOUCHED`： 频道数达到管理员设置的最大频道数
