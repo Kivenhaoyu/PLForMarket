@@ -65,7 +65,7 @@
 |`API_OK`|2000|ok|成功|
 |`API_BAD_REQUEST`|4000|bad request|请求的参数缺失或格式不符|
 |`API_UNAUTHORIZED`|4010|unauthorized|未授权，一般是因为`api_token`不正确|
-|`API_INVALID_AUTH_CODE`|4011|invalid auth code|错误的手机验证码|
+|`API_INVALID_AUTH_CODE`|4011|invalid auth code|错误的登录验证码|
 |`API_OAUTH_FAIL`|4012|oauth fail|OAuth登录失败|
 |`API_MAX_CHANNEL_TOUCHED`|4031|touch maximum number of channels|达到最大频道数量|
 |`API_USER_NOT_FOUND`|4041|user not found|用户未找到|
@@ -197,11 +197,11 @@ GET /users/login/github
 {
   "code": 2000, 
   "desc": "ok", 
-  "oauth_code": <string oauth_code>
+  "auth_code": <string auth_code>
 }
 ```
 
-- `oauth_code`： `string`类型，凭此[登录](#login)
+- `auth_code`： `string`类型，凭此[登录](#login)
 
 **失败**
 
@@ -227,11 +227,11 @@ GET /users/login/qiniu
 {
   "code": 2000, 
   "desc": "ok", 
-  "oauth_code": <string oauth_code>
+  "auth_code": <string auth_code>
 }
 ```
 
-- `oauth_code`： `string`类型，凭此[登录](#login)
+- `auth_code`： `string`类型，凭此[登录](#login)
 
 **失败**
 
@@ -249,11 +249,11 @@ POST /users/login
 Content-Type: application/json
 
 {
-	"oauth_code": <string auth_code>
+	"auth_code": <string auth_code>
 }
 ```
 
-- `oauth_code`： `string`类型，OAuth成功后返回的`oauth_code`，一经登录即作废。
+- `auth_code`： `string`类型，OAuth成功后返回的`auth_code`，一经登录即作废。
 
 **成功**
 
