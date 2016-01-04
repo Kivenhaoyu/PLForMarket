@@ -97,6 +97,8 @@
 	- [获取我的频道列表](#get-my-channels)
 	- [开始推流](#channel-publish)
 	- [结束推流](#channel-finish)
+	- [频道点赞](#channel-like)
+	- [频道取消点赞](#channel-dislike)
 
 ---
 
@@ -475,7 +477,8 @@ API_BAD_REQUEST
   	"orientation": <int orientation>,
   	"quality": <int quality>,
   	"status": <int status>,
-  	"owner": <user>,  
+  	"owner": <user>,
+  	"is_liked": <bool is_liked>,
 	"started_at": <timestamp statred_at>,
   	"stopped_at": <timestamp stopped_at>,
   	"created_at": <timestamp created_at>
@@ -496,6 +499,7 @@ API_BAD_REQUEST
 	- `3`：关闭（由频道拥有者操作）
 	- `4`：禁止（由管理员操作）
 - `owner`：`user`类型（[定义](#user-definition)），频道的拥有者
+- `is_liked`： `bool`类型，当前用户是否对该频道点赞
 - `started_at`： `timestamp`类型，开始推流的时间
 - `stopped_at`： `timestamp`类型，结束推流的时间
 - `created_at`： `timestamp`类型，频道创建的时间
@@ -792,7 +796,7 @@ API_BAD_REQUEST
 **请求**
 
 ```
-POST /channels/<int channel_id>/finish
+POST /channels/finish
 Authorization: Basic Auth
 Content-Type: application/json
 
@@ -822,3 +826,75 @@ API_BAD_REQUEST
 
 - `API_UNAUTHORIZED`： 如果请求的用户和申请结束推流频道的所有者不是同一人，也会返回未授权。
 - `API_BAD_REQUEST`： 频道未处于`publishing`[状态](#channel-status)
+
+<a name="channel-like"></a>
+#### 频道点赞
+
+**请求**
+
+```
+POST /channels/like
+Authorization: Basic Auth
+Content-Type: application/json
+
+{
+	"id": <int id>
+}
+```
+
+- `id`： `int`类型，频道id。必须
+
+**成功**
+
+```
+{
+	"code": 2000,
+	"desc": "ok",
+}
+```
+
+**失败**
+
+```
+API_UNAUTHORIZED
+API_CHANNEL_NOT_FOUND
+API_BAD_REQUEST
+```
+
+- `API_BAD_REQUEST`： 当前用户已经对该频道点赞
+
+<a name="channel-dislike"></a>
+#### 取消频道点赞
+
+**请求**
+
+```
+POST /channels/dislike
+Authorization: Basic Auth
+Content-Type: application/json
+
+{
+	"id": <int id>
+}
+```
+
+- `id`： `int`类型，频道id。必须
+
+**成功**
+
+```
+{
+	"code": 2000,
+	"desc": "ok",
+}
+```
+
+**失败**
+
+```
+API_UNAUTHORIZED
+API_CHANNEL_NOT_FOUND
+API_BAD_REQUEST
+```
+
+- `API_BAD_REQUEST`： 当前用户并没有对该频道点赞
