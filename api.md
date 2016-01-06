@@ -730,7 +730,7 @@ Authorization: Basic Auth
 		"playback": {
 			"hls": "xxxxx/hub/stream-id.m3u8?start=t&end=t"
 		},
-		"playback": {
+		"live": {
 			"flv": "http://xxxxx/hub/stream-id.flv",
 			"hls": "http:/xxxxx/hub/stream-id.m3u8",
 		  	"rtmp": "rtmp://xxxxx/hub/stream-id"
@@ -921,8 +921,27 @@ API_CHANNEL_INACCESSIBLE
 在返回的结果中，`message`的格式如下：
 
 ```
-
+{
+	"id": <int id>,
+	"content": <string content>,
+	"offset": <int offset>,
+	"author": {
+		"id": <int user_id>,
+		"nickname": <string nickname>,
+		"avatar": <string avatra>
+	},
+	"channel_id": <int channel_id>
+}
 ```
+
+- `id`，`int`类型，消息的id
+- `content`， `string`类型，消息内容
+- `offset`， `int`类型，相对于频道开始时间的偏移，单位秒
+- `author`，发送消息的用户基本信息
+	- `user_id`， `int`类型，用户的id
+	- `nickname`， `string`类型，用户的昵称
+	- `avatar`， `string`类型，用户的头像url
+- `channel_id`， `int`类型，消息归属的频道id
 
 <a name="send-message"></a>
 ####  发送消息
