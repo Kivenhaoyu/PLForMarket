@@ -971,6 +971,18 @@ Content-Type: application/json
 }
 ```
 
+如果频道处于直播状态，发送的消息的`extra`中还会包含用户名称和头像信息，格式如下：
+
+```
+{
+	"name": <string name>,
+	"avatar": <string avatar>
+}
+```
+
+- `name`： `string`类型，消息发送者的名称
+- `avatar`： `string`类型，消息发送者的头像url
+
 **失败**
 
 ```
