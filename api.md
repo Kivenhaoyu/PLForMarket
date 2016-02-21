@@ -25,7 +25,7 @@
 
 用户登录后的所有操作都需要经过鉴权，鉴权方式使用 **[HTTP Basic Auth](https://zh.wikipedia.org/wiki/HTTP%E5%9F%BA%E6%9C%AC%E8%AE%A4%E8%AF%81)**。
 
-用户在登录成功后，服务器会返回唯一的`api_token`。之后客户端的每一次请求都需要在请求头中携带经过 [Base64](https://zh.wikipedia.org/wiki/Base64) 编码的`api_token`，形式为：`Authorization: base64encode(api_token)`。
+用户在登录成功后，服务器会返回唯一的`api_token`。之后客户端的每一次请求都需要在请求头中携带经过 [Base64](https://zh.wikipedia.org/wiki/Base64) 编码的`api_token`，形式为：`Authorization: base64encode(api_token:)`。
 
 <a name='token-life-circle'></a>
 ### 令牌生命周期
@@ -80,8 +80,6 @@
 ### 目录
 
 - [登陆](#api-login)
-	- [获取手机验证码](#get_auth_code)
-	- [根据手机号码登录](#login_by_mobile)
 	- [Github OAuth方式登陆](#github-oauth)
 	- [Qiniu OAuth方式登陆](#qiniu-oauth)
 	- [登录](#login)
@@ -99,9 +97,6 @@
 	- [获取回放频道列表](#get-playback-channels)
 	- [获取我的频道列表](#get-my-channels)
 	- [访问指定频道](#access-channel)
-	- [开始推流](#channel-publish)
-	- [结束推流](#channel-finish)
-	- [恢复推流](#channel-resume)
 	- [对应频道的流状态](#channel-stream-status)
 	- [频道点赞](#channel-like)
 	- [频道取消点赞](#channel-dislike)
@@ -116,83 +111,6 @@
 
 <a name="api-login"></a>
 ### 登录
-> - `v1.0.1`仅支持使用[Github OAuth](#github-oauth)或[Qiniu OAuth](#qiniu-oauth)的方式登陆。
-
-<a name='get_auth_code'></a>
-####  获取手机验证码
-> `v1.0.1`该接口不使用
-
-一个用户一次请求所获得的一个验证码，在**十分钟内有效**。
-
-**请求**
-
-```
-GET /users/login/mobile/code?mobile=<mobile>
-```
-- `mobile` `string`类型，用户的手机号，必选
-
-**成功**
-
-```
-{
-	"code": 2000,
-	"desc": "ok"
-}
-```
-此时服务器端以成功向用户手机发送验证码。
-
-**失败**
-
-```
-API_BAD_REQUEST
-```
-根据不同场景可能表达以下含义，详见`desc`字段的描述：
-
-- 缺少参数`mobile`
-- `mobile`格式不正确，无法获取手机验证码
-
-<a name='login_by_mobile'></a>
-####  根据手机号码登录
-> `v1.0.1`该接口不使用
-
-**请求**
-
-```
-POST /users/login/mobile
-Content-Type: application/json
-
-{
-	"mobile": <string mobile>,
-	"auth_code": <string auth_code>
-}
-```
-
-- `mobile`： `string`类型，用户的手机号
-- `auth_code`： `string`类型，用户的验证码
-
-**成功**
-
-```
-{
-  "code": 2000,
-  "desc": "ok",
-  "user": <user user>,
-  "api_token": <string api_token>,
-  "rong_cloud_token": <string rong_cloud_token>
-}
-```
-表示用户通过验证，此时请求中的`auth_code`过期作废。
-
-- `user`： `user`类型（[定义](#user-definition)），当前用户
-- `api_token`： `string`类型，用户本次[生命周期](#token-life-circle)中用于[鉴权](#authentication)的秘钥
-- `rong_cloud_token`： `int`类型，融云的token
-
-**失败**
-
-```
-API_INVALID_AUTH_CODE
-```
-错误的验证码。
 
 <a name="github-oauth"></a>
 ####  Github OAuth方式登录
@@ -329,7 +247,6 @@ API_UNAUTHORIZED
 	"github_name": <string github_name>,
 	"github_email": <string github_email>,
 	"is_banned": <int is_banned>,
-	"stream_status" <int stream_status>:
 }
 ```
 - `id`： `int`类型，用户id
@@ -352,10 +269,6 @@ API_UNAUTHORIZED
 - `is_banned`： `bool`类型，用户是否被禁用
 	- `true`：禁用状态
 	- `false`：可用状态
-- `stream_status`： `int`类型，用户所持有的流状态
-	- `0`：用户没有创建过流（创建频道后生成）
-	- `1`：用户的流处于不可用状态（被占据、被禁用等，不应创建频道）
-	- `2`：用户的流可用（可以新建频道）
 
 <a name="get-user-info"></a>
 ####  获取用户信息
@@ -473,22 +386,21 @@ API_BAD_REQUEST
 
 ```
 {
-	"channel":{
-		"id": <int id>,
-		"title": <string title>,
-		"thumbnail": <string thumbnail>,
-		"desc": <string desc>,
-	  	"duration": <int duration>,
-	  	"orientation": <int orientation>,
-	  	"quality": <int quality>,
-	  	"status": <int status>,
-	  	"owner": <user owner>,
-	  	"visit_count": <int visit_count>,
-	  	"like_count": <int like_count>,
-		"started_at": <timestamp statred_at>,
-	  	"stopped_at": <timestamp stopped_at>,
-	  	"created_at": <timestamp created_at>
-	},
+	"id": <int id>,
+	"title": <string title>,
+	"thumbnail": <string thumbnail>,
+	"desc": <string desc>,
+  	"duration": <int duration>,
+  	"orientation": <int orientation>,
+  	"quality": <int quality>,
+  	"status": <int status>,
+  	"is_banned": <bool is_banned>
+  	"owner": <user owner>,
+  	"visit_count": <int visit_count>,
+  	"like_count": <int like_count>,
+	"started_at": <timestamp statred_at>,
+  	"stopped_at": <timestamp stopped_at>,
+  	"created_at": <timestamp created_at>
 	"is_liked": <bool is_liked>,
 	"live_time": <int live_time>,
 	"online_nums": <int online_nums>,
@@ -503,50 +415,38 @@ API_BAD_REQUEST
 
 ```
 
-- `channel`： 频道的基本信息
-	- `id`： `int`类型，频道id
-	- `title`： `string`类型，频道标题
-	- `thumbnail`： `string`类型，频道缩略图对应url
-	- `desc`： `string`类型，频道描述
-	- `duration`： `int`类型，频道的持续时间，单位秒。未结束时为None
-	- `orientation`： `int`类型，屏幕方向，由前端给出
-	- `quality`： `ini`类型，画质，由前端给出
-	- `status`： `int`类型，[频道状态](#channel-status)<a name="channel-status-definition"></a>
-		- `0`：新建，尚未推流
-		- `1`：推流中
-		- `2`：已结束推流
-		- `3`：关闭（由频道拥有者操作）
-		- `4`：禁止（由管理员操作）
-	- `owner`：`user`类型（[定义](#user-definition)），频道的拥有者
-	- `visit_count`： `int`类型，当前频道被点击的数目
-	- `like_count`： `int`类型，当前频道被点赞的数目
-	- `started_at`： `timestamp`类型，开始推流的时间
-	- `stopped_at`： `timestamp`类型，结束推流的时间
-	- `created_at`： `timestamp`类型，频道创建的时间
+- `id`： `int`类型，频道id
+- `title`： `string`类型，频道标题
+- `thumbnail`： `string`类型，频道缩略图对应url
+- `desc`： `string`类型，频道描述
+- `duration`： `int`类型，频道的持续时间，单位秒。未结束时为None
+- `orientation`： `int`类型，屏幕方向，由前端给出
+- `quality`： `ini`类型，画质，由前端给出
+- `status`： `int`类型，[频道状态](#channel-status)<a name="channel-status-definition"></a>
+	- `0`：新建，尚未推流
+	- `1`：推流中
+	- `3`：已结束推流
+- `is_banned`： `bool`类型，频道是否已经被禁止
+- `owner`：`user`类型（[定义](#user-definition)），频道的拥有者
+- `visit_count`： `int`类型，当前频道被点击的数目
+- `like_count`： `int`类型，当前频道被点赞的数目
+- `started_at`： `timestamp`类型，开始推流的时间
+- `stopped_at`： `timestamp`类型，结束推流的时间
+- `created_at`： `timestamp`类型，频道创建的时间
 - `is_liked`： `bool`类型，当前用户是否已点赞该频道
 - `live_time`： `int`类型，从直播开始到现在过去的秒数，如果不在直播中，为`null`
 - `online_nums`： `int`类型，当前观看直播的人数，如果不在直播中，为`null`
 
-以下参数仅在调用[访问指定频道](#access-channel)时会取到有效值，否则皆为`null`
-
-- `playback`： 回放地址，如果仍在直播中，为`null`
-- `live`： 直播地址，如果不在直播中，为`null`
-
-
 <a name="channel-status"></a>
 **频道状态**
 
-在目前的设计（v1.0.1）中，频道有五种可能的状态：
+在目前的设计（v1.0.1）中，频道有三种可能的状态：
 
 - `initiate`： 新建状态，这时用户还没有提起推流请求。一个用户只可能拥有至多一个处于`initiate`状态的频道，一旦一个频道被新建了但是没有进行推流，它将会在下一个新建频道的请求到来后被删除。
 
 - `publishing`： 正在推流状态。只有一个处于`initiate`状态的频道可以被提出推流申请，对任何非`initiate`状态的频道提出推流申请都将被服务器拒绝。一个用户只可能拥有至多一个处于`publishing`状态的频道，此后任何新的对该用户的`initiate`状态频道的推流申请都将强制打断当前处于`publishing`状态的这个频道。
 
 - `published`： 结束推流状态。只有一个处于`publishing`状态的频道可以被提出结束推流申请。一个用户可以拥有多个处于`published`状态的频道。
-
-- `closed`：关闭状态。用户可以关闭自己（一般是处于`published`状态）的频道，被关闭的频道将不会被任何其他用户查看。
-
-- `banned`：禁止状态。管理员可以禁止用户的频道，被禁止的频道将会被强制中断直播（如果处于`publishing`状态），并且不能被回放。
 
 <a name="stream-definition"></a>
 ####  类型声明：`stream`
@@ -761,99 +661,6 @@ API_UNAUTHORIZED
 API_CHANNEL_NOT_FOUND
 API_CHANNEL_INACCESSIBLE
 ```
-
-<a name="channel-publish"></a>
-####  开始推流
-**请求**
-
-```
-POST /channels/publish/<int id>
-Authorization: Basic Auth
-```
-
-- `id`： `int`类型，要推流的频道id
-
-**成功**
-
-```
-{
-	"code": 2000,
-	"desc": "ok",
-}
-```
-
-**失败**
-
-```
-API_UNAUTHORIZED
-API_CHANNEL_NOT_FOUND
-API_BAD_REQUEST
-```
-
-- `API_UNAUTHORIZED`： 如果请求的用户和申请推流频道的所有者不是同一人，也会返回未授权。
-- `API_BAD_REQUEST`： 频道未处于`initiate`[状态](#channel-status)
-
-<a name="channel-finish"></a>
-####  结束推流
-**请求**
-
-```
-POST /channels/finish/<int id>
-Authorization: Basic Auth
-```
-
-- `id`： `int`类型，要结束推流的频道id
-
-**成功**
-
-```
-{
-	"code": 2000,
-	"desc": "ok",
-}
-```
-
-**失败**
-
-```
-API_UNAUTHORIZED
-API_CHANNEL_NOT_FOUND
-API_BAD_REQUEST
-```
-
-- `API_UNAUTHORIZED`： 如果请求的用户和申请结束推流频道的所有者不是同一人，也会返回未授权。
-- `API_BAD_REQUEST`： 频道未处于`publishing`[状态](#channel-status)
-
-<a name="channel-resume"></a>
-####  恢复推流
-**请求**
-
-```
-POST /channels/resume/<int id>
-Authorization: Basic Auth
-```
-
-- `id`： `int`类型，要恢复推流的频道id
-
-**成功**
-
-```
-{
-	"code": 2000,
-	"desc": "ok",
-}
-```
-
-**失败**
-
-```
-API_UNAUTHORIZED
-API_CHANNEL_NOT_FOUND
-API_BAD_REQUEST
-```
-
-- `API_UNAUTHORIZED`： 如果请求的用户和申请推流频道的所有者不是同一人，也会返回未授权。
-- `API_BAD_REQUEST`： 频道未处于`published`[状态](#channel-status)，或是频道对应的流已经被其他更新的频道使用了。
 
 <a name="channel-stream-status"></a>
 ####  对应频道的流状态
@@ -1084,7 +891,7 @@ Authorization: Basic Auth
 - `id`： `int`类型，要发送消息的频道id
 - `s`： `int`类型，要获取对应视频第`s`秒的字幕，默认为`1`，单位秒
 - `o`： `int`类型，要获取包括第`s`秒在内，往后`o`秒的字幕，默认为`10`，单位秒
-- `l`： `int`类型，每秒最大的字幕数目，默认为`不限制`
+- `l`： `int`类型，每秒最大的字幕数目，默认为`100`
 
 > 参数解释
 > 
