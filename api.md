@@ -1,6 +1,6 @@
 # 市场部直播APP应用接口说明
 
-版本号：`v1.0.1`
+版本号：`v1.0.2`
 
 ## 接口规范
 
@@ -71,6 +71,7 @@
 |`API_MAX_CHANNEL_TOUCHED`|4031|touch maximum number of channels|达到最大频道数量|
 |`API_MESSAGE_TOO_FREQUENTLY`|4032|send meesage too frequently|发送消息频率太快|
 |`API_CHANNEL_INACCESSIBLE`|4033|channel is inaccessible|频道不处于`推流中`或`结束推流`的[状态](#channel-status)，不可访问|
+|`API_CHANNEL_ALREADY_FINISHED`|4034|channel is already finished|频道已经处于`街退推流`的[状态](#channel-status)，不可访问；这个响应码会在试图访问一个实际已经结束推流、但是业务上没有来得及记录的频道时抛出|
 |`API_USER_NOT_FOUND`|4041|user not found|用户未找到|
 |`API_CHANNEL_NOT_FOUND`|4042|channel not found|频道未找到|
 
@@ -85,27 +86,37 @@
 	- [登录](#login)
 	- [登出](#logout)
 - [用户相关](#api-user)
-	- [类型声明: user](#user-definition)
+	- [类型声明: user](#user-definition)（有更新，新增粉丝数等统计信息）
 	- [获取用户信息](#get-user-info)
 	- [获取我的用户信息](#get-my-info)
-	- [更新我的用户信息](#update-my-info)
+	- [更新我的用户信息](#update-my-info)（有更新）
+	- [关注用户](#follow-user)（新）
+	- [取消关注用户](#unfollow-user)（新）
+	- [获取我的关注列表](#get-follows)（新）
+	- [获取我的粉丝列表](#get-followers)（新）
 - [频道相关](#api-channel)
-	- [类型声明: channel](#channel-definition)
+	- [类型声明: channel](#channel-definition)（有更新）
 	- [类型声明: stream](#stream-definition)
 	- [创建频道](#create-channel)
 	- [获取直播频道列表](#get-live-channels)
-	- [获取回放频道列表](#get-playback-channels)
-	- [获取我的频道列表](#get-my-channels)
-	- [访问指定频道](#access-channel)
-	- [对应频道的流状态](#channel-stream-status)
+	- [获取回放频道列表](#get-playback-channels)（有更新，新增type）
+	- [获取指定用户的所有频道列表](#get-user-channels)（修改）
+	- [访问指定频道](#access-channel)（有更新，新增响应码）
+	- [检查频道的流状态](#channel-stream-status)
 	- [频道点赞](#channel-like)
 	- [频道取消点赞](#channel-dislike)
 	- [投诉频道](#send-channel-complain)
 	- [分享频道](#share-channel)
+	- [删除频道](#delete-channel)（新）
 - [消息相关](#api-message)
 	- [类型声明: message](#message-definition)
 	- [发送消息](#send-message)
 	- [获取频道中的消息](#get-channel-messages)
+- [其他](#api-others)
+	- [反馈](#feedback)（新）
+	- [类型声明: notify](#notify-definition)（新）
+	- [获取通知列表](#get-notifies)（新）
+	- [获取通知具体内容](#get-notify)（新）
 
 ---
 
@@ -247,6 +258,10 @@ API_UNAUTHORIZED
 	"github_name": <string github_name>,
 	"github_email": <string github_email>,
 	"is_banned": <int is_banned>,
+	"like_count": <int like_count>,
+	"followed_count": <int followed_count>,
+	"follower_count": <int follower_count>,
+	"is_followed": <bool is_followed>
 }
 ```
 - `id`： `int`类型，用户id
@@ -269,6 +284,10 @@ API_UNAUTHORIZED
 - `is_banned`： `bool`类型，用户是否被禁用
 	- `true`：禁用状态
 	- `false`：可用状态
+- `like_count`：点赞数
+- `followed_count`：关注的人的数量
+- `follower_count`：粉丝数量
+- `is_followed`：当前用户是否关注该用户
 
 <a name="get-user-info"></a>
 ####  获取用户信息
@@ -346,7 +365,9 @@ Content-Type: application/json
     "avatar": <string avatar>,
     "nickname": <string nickname>,
     "gender": <int gender>,
-    "bio": <string bio>
+    "bio": <string bio>,
+    "email": <string email>,
+    "mobile": <string mobile>
 }
 ```
 
@@ -354,6 +375,8 @@ Content-Type: application/json
 - `nickname`： `string`类型，用户昵称，可选
 - `gender`： `int`类型，用户性别（[定义](#user-definition-gender)），可选
 - `bio`： `string`类型，用户简介，可选
+- `email`：`string`类型，用户邮箱，可选
+- `mobile`：`string`类型，用户手机，可选
 
 **成功**
 
@@ -372,7 +395,142 @@ Content-Type: application/json
 ```
 API_UNAUTHORIZED
 API_BAD_REQUEST
+```
 
+<a name="follow-user"></a>
+####  关注用户
+
+```
+POST /users/follow/<int id>
+Authorization: Basic Auth
+```
+
+- `id`： `int`类型，要关注的用户id
+
+**成功**
+
+```
+{
+	"code": 2000,
+	"desc": "ok",
+}
+```
+
+**失败**
+
+
+```
+API_UNAUTHORIZED
+API_USER_NOT_FOUND
+API_BAD_REQUEST
+```
+
+- `API_BAD_REQUEST`： 当前用户已经关注该用户
+
+<a name="unfollow-user"></a>
+####  取消关注用户
+
+```
+POST /users/unfollow/<int id>
+Authorization: Basic Auth
+```
+
+- `id`： `int`类型，要取消关注的用户id
+
+**成功**
+
+```
+{
+	"code": 2000,
+	"desc": "ok",
+}
+```
+
+**失败**
+
+
+```
+API_UNAUTHORIZED
+API_USER_NOT_FOUND
+API_BAD_REQUEST
+```
+
+- `API_BAD_REQUEST`： 当前用户并未关注该用户
+
+<a name="get-follows"></a>
+####  获取关注用户列表
+
+```
+GET /users/follows/<int id>?p=<p>&l=<l>
+Authorization: Basic Auth
+```
+
+- `id`： `int`类型，要获取关注用户列表的用户id
+- `p`： `int`类型，分页中的页数page，默认为`1`
+- `l`： `int`类型，分页中的限制limit，默认为`10`
+
+**成功**
+
+```
+{
+	"code": 2000,
+	"desc": "ok",
+	"count": <int count>
+	"users":[
+		{
+	 		"user": <user>,
+			...
+		}
+	]
+
+}
+```
+
+- `count`： `int`类型，获取到的用户数量
+- `user`：`user`类型（[定义](#user-definition)）
+
+**失败**
+
+```
+API_UNAUTHORIZED
+```
+
+<a name="get-followers"></a>
+####  获取粉丝列表
+
+```
+GET /users/followers/<int id>?p=<p>&l=<l>
+Authorization: Basic Auth
+```
+
+- `id`： `int`类型，要获取粉丝列表的用户id
+- `p`： `int`类型，分页中的页数page，默认为`1`
+- `l`： `int`类型，分页中的限制limit，默认为`10`
+
+**成功**
+
+```
+{
+	"code": 2000,
+	"desc": "ok",
+	"count": <int count>
+	"users":[
+		{
+	 		"user": <user>,
+			...
+		}
+	]
+
+}
+```
+
+- `count`： `int`类型，获取到的用户数量
+- `user`：`user`类型（[定义](#user-definition)）
+
+**失败**
+
+```
+API_UNAUTHORIZED
 ```
 
 ----
@@ -532,11 +690,10 @@ API_MAX_CHANNEL_TOUCHED
 **请求**
 
 ```
-GET /channels/live?owner_id=<owner_id>&p=<p>&l=<l>
+GET /channels/live?type=<type>&p=<p>&l=<l>
 Authorization: Basic Auth
 ```
 
-- `owner_id`： `int`类型，频道属主id，可选
 - `p`： `int`类型，分页中的页数page，默认为`1`
 - `l`： `int`类型，分页中的限制limit，默认为`10`
 
@@ -546,6 +703,7 @@ Authorization: Basic Auth
 {
 	"code": 2000,
 	"desc": "ok",
+	"count": <int count>,
 	"channels":[
 		{
 	 		"channel": <channel>,
@@ -555,27 +713,29 @@ Authorization: Basic Auth
 }
 ```
 
+- `count`： `int`类型，获取到的频道数量
 - `channel`： `channel`类型，本次创建的频道信息，定义见[这里](#channel-definition)
 
 **失败**
 
 ```
 API_UNAUTHORIZED
-API_CHANNEL_NOT_FOUND
 ```
 
 <a name="get-playback-channels"></a>
 ####  获取回放频道列表
+本接口可以使用`type`参数来规定查找的回放频道列表的排序依据
+
 **请求**
 
 ```
-GET /channels/playback?owner_id=<owner_id>&p=<p>&l=<l>
+GET /channels/playback?type=<type>&p=<p>&l=<l>
 Authorization: Basic Auth
 ```
 
-- `owner_id`： `int`类型，频道属主id，可选
-- `p`： `int`类型，分页中的页数page，默认为`1`
-- `l`： `int`类型，分页中的限制limit，默认为`10`
+- `type`：`int`类型，默认为`1`（`0`=最热，`1`=最新，`2`=关注）
+- `p`：`int`类型，分页中的页数page，默认为`1`
+- `l`：`int`类型，分页中的限制limit，默认为`10`
 
 **成功**
 
@@ -583,6 +743,7 @@ Authorization: Basic Auth
 {
 	"code": 2000,
 	"desc": "ok",
+	"count": <int count>,
 	"channels":[
 		{
 	 		"channel": <channel>,
@@ -592,44 +753,53 @@ Authorization: Basic Auth
 }
 ```
 
+- `count`：`int`类型，获取到的频道数量
+- `channel`：`channel`类型，本次创建的频道信息，定义见[这里](#channel-definition)
+
+**失败**
+
+```
+API_UNAUTHORIZED
+```
+
+<a name="get-user-channels"></a>
+####  获取指定用户的全部频道列表
+**请求**
+
+```
+GET /channels/all?owner_id=<owner_id>&status=<status>&p=<p>&l=<l>
+Authorization: Basic Auth
+```
+
+- `owner_id`：`int`类型，频道属主id，可选
+- `status`： `int`类型，频道状态。可选，默认为` publishing`和`published`，可选二者其一，具体可参考[频道状态](#channel-status)
+- `p`： `int`类型，分页中的页数page，默认为`1`
+- `l`： `int`类型，分页中的限制limit，默认为`10`
+
+**成功**
+
+```
+{
+	"code": 2000,
+	"desc": "ok",
+	"count": <int count>,
+	"channels":[
+		{
+	 		"channel": <channel>,
+			...
+		}
+	]
+}
+```
+
+- `count`： `int`类型，获取到的频道数量
 - `channel`： `channel`类型，本次创建的频道信息，定义见[这里](#channel-definition)
 
 **失败**
 
 ```
 API_UNAUTHORIZED
-API_CHANNEL_NOT_FOUND
 ```
-
-<a name="get-my-channels"></a>
-####  获取我的频道列表
-**请求**
-
-```
-GET /channels/my?status=<status>&p=<p>&l=<l>
-Authorization: Basic Auth
-```
-
-- `status`： `int`类型，频道状态。可选，可为任意[频道状态](#channel-status)
-- `p`： `int`类型，分页中的页数page，默认为`1`
-- `l`： `int`类型，分页中的限制limit，默认为`10`
-
-**成功**
-
-```
-{
-	"code": 2000,
-	"desc": "ok",
-	"channels":[
-		{
-	 		"channel": <channel>,
-			...
-		}
-	]
-}
-```
-
-- `channel`： `channel`类型，本次创建的频道信息，定义见[这里](#channel-definition)
 
 <a name="access-channel"></a>
 ####  访问指定频道
@@ -660,10 +830,13 @@ Authorization: Basic Auth
 API_UNAUTHORIZED
 API_CHANNEL_NOT_FOUND
 API_CHANNEL_INACCESSIBLE
+API_CHANNEL_ALREADY_FINISHED
 ```
 
+- `API_CHANNEL_ALREADY_FINISHED `：试图访问一个实际已经结束推流、但是业务上没有来得及记录的频道
+
 <a name="channel-stream-status"></a>
-####  对应频道的流状态
+####  检查频道的流状态
 **请求**
 
 ```
@@ -795,9 +968,34 @@ API_CHANNEL_INACCESSIBLE
 <a name="share-channel"></a>
 ####  分享频道
 
-**分享url**
+**分享url**：`/channels/share/<int channel_id>`
 
-`/channels/share/<int channel_id>`
+<a name="delete-channel"></a>
+####  删除频道
+**请求**
+
+```
+POST /channels/delete/<int id>
+Authorization: Basic Auth
+```
+
+- `id`： `int`类型，要删除的频道id
+
+**成功**
+
+```
+{
+	"code": 2000,
+	"desc": "ok",
+}
+```
+
+**失败**
+
+```
+API_UNAUTHORIZED
+API_CHANNEL_NOT_FOUND
+```
 
 <a name="api-message"></a>
 ### 消息相关
@@ -820,14 +1018,14 @@ API_CHANNEL_INACCESSIBLE
 }
 ```
 
-- `id`，`int`类型，消息的id
-- `content`， `string`类型，消息内容
-- `offset`， `int`类型，相对于频道开始时间的偏移，单位秒
-- `author`，发送消息的用户基本信息
-	- `user_id`， `int`类型，用户的id
-	- `nickname`， `string`类型，用户的昵称
-	- `avatar`， `string`类型，用户的头像url
-- `channel_id`， `int`类型，消息归属的频道id
+- `id`：`int`类型，消息的id
+- `content`：`string`类型，消息内容
+- `offset`：`int`类型，相对于频道开始时间的偏移，单位秒
+- `author`：发送消息的用户基本信息
+	- `user_id`：`int`类型，用户的id
+	- `nickname`：`string`类型，用户的昵称
+	- `avatar`：`string`类型，用户的头像url
+- `channel_id`：`int`类型，消息归属的频道id
 
 <a name="send-message"></a>
 ####  发送消息
@@ -931,3 +1129,115 @@ API_CHANNEL_NOT_FOUND
 API_BAD_REQUEST
 API_CHANNEL_INACCESSIBLE
 ```
+
+<a name="api-others"></a>
+### 其他
+
+<a name="feedback"></a>
+####  反馈
+**请求**
+
+```
+POST /feedback
+Authorization: Basic Auth
+Content-Type: application/json
+
+{
+	"content": <string content>,
+	"email": <string email>
+}
+```
+
+- `content`： `string`类型，反馈内容，必须
+- `email`： `string`类型，反馈人邮箱，必须
+
+**成功**
+
+```
+{
+	"code": 2000,
+	"desc": "ok",
+}
+```
+
+**失败**
+
+```
+API_UNAUTHORIZED
+API_BAD_REQUEST
+```
+
+<a name="notify-definition"></a>
+####  类型声明 `notify`
+在返回的结果中，`notify`的格式如下：
+
+```
+{
+	"id": <int id>,
+	"title": <string title>
+	"thumbnail": <string thumbnail>
+	"brief": <string content>,
+	"noticed_at": <timestamp noticed_at>,
+	"is_read": <bool is_read>
+}
+```
+
+- `id`：`int`类型，通知的id
+- `title `： `string`类型，通知的标题
+- `thumbnail`： `string`类型，通知的缩略图，如果没有则为`null`
+- `brief`： `string`类型，通知的摘要
+- `noticed_at`：`timestamp`类型，通知发布的时间
+- `is_read`：`bool`类型，当前用户是否已读该消息
+
+<a name="get-notifies"></a>
+####  获取通知列表
+本接口有两种使用方法：
+
+1. 请求时携带`all`参数并置为`1`，这样接口将返回**自用户注册时间**之后的所有消息；
+2. 请求时不携带`all`参数，这样接口将只返回**上次调用该接口的时间**之后的消息；
+
+**请求**
+
+```
+GET /notifies?all=<all>&p=<p>&l=<l>
+Authorization: Basic Auth
+```
+
+- `all`： `int`类型，默认为`0`，表示用法二；置为`1`时，表示用法一
+- `p`： `int`类型，分页中的页数page，默认为`1`
+- `l`： `int`类型，分页中的限制limit，默认为`10`
+
+**成功**
+
+```
+{
+	"code": 2000,
+	"desc": "ok",
+	"count": <int count>,
+	"notifies":[
+		{
+	 		"notify": <notify>,
+			...
+		}
+	]
+}
+```
+
+- `count`： `int`类型，获取到的通知数量
+- `notify`： `notify`类型，定义见[这里](#notify-definition)
+
+**失败**
+
+```
+API_UNAUTHORIZED
+```
+
+<a name="get-notify"></a>
+####  获取通知详情
+
+**通知详情url**：`/notifies/<notify_id>?user_id=<user_id>`
+
+- `notify_id`：`int`类型，通知的id，必须
+- `user_id`： `int`类型，访问该通知的用户id，必须
+
+
