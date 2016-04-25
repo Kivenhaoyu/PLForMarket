@@ -17,11 +17,10 @@
 #### `POST`
 一般在操作服务器资源时使用。
 
-包含参数时，请求头需添加`Content-Type: application/json`，参数一律以 **JSON** 格式在请求体中传递，示例可参考**[根据手机验证码登录](#login_by_mobile)**API。
+包含参数时，请求头需添加`Content-Type: application/json`，参数一律以 **JSON** 格式在请求体中传递，示例可参考**[更新我的用户信息](#update-my-info)**API。
 
 <a name="authentication"></a>
 ### 鉴权
-> `TODO` 添加加密`Token`机制
 
 用户登录后的所有操作都需要经过鉴权，鉴权方式使用 **[HTTP Basic Auth](https://zh.wikipedia.org/wiki/HTTP%E5%9F%BA%E6%9C%AC%E8%AE%A4%E8%AF%81)**。
 
@@ -71,7 +70,6 @@
 |`API_MAX_CHANNEL_TOUCHED`|4031|touch maximum number of channels|达到最大频道数量|
 |`API_MESSAGE_TOO_FREQUENTLY`|4032|send meesage too frequently|发送消息频率太快|
 |`API_CHANNEL_INACCESSIBLE`|4033|channel is inaccessible|频道不处于`推流中`或`结束推流`的[状态](#channel-status)，不可访问|
-|`API_CHANNEL_ALREADY_FINISHED`|4034|channel is already finished|频道已经处于`街退推流`的[状态](#channel-status)，不可访问；这个响应码会在试图访问一个实际已经结束推流、但是业务上没有来得及记录的频道时抛出|
 |`API_USER_NOT_FOUND`|4041|user not found|用户未找到|
 |`API_CHANNEL_NOT_FOUND`|4042|channel not found|频道未找到|
 
@@ -180,11 +178,13 @@ POST /users/login
 Content-Type: application/json
 
 {
-	"auth_code": <string auth_code>
+	"auth_code": <string auth_code>,
+	"getui_cid": <string getui_cid>
 }
 ```
 
-- `auth_code`： `string`类型，OAuth成功后返回的`auth_code`，一经登录即作废。
+- `auth_code`： `string`类型，OAuth成功后返回的`auth_code`，一经登录即作废。必须
+- `getui_cid`： `string`类型，个推生成的cid。必须
 
 **成功**
 
@@ -270,9 +270,9 @@ API_UNAUTHORIZED
 - `bio`： `string`类型，用户个人签名
 <a name="user-definition-gender"></a>
 - `gender`： `int`类型，用户的性别
-	- `null`：unknown
-	- `0`：male
-	- `1`：female
+	- `0`：secret
+	- `1`：male
+	- `2`：female
 - `email`： `string`类型，用户的电子邮箱（优先级：七牛帐号对应邮箱 > Github帐号对应邮箱）
 - `mobile`： `string`类型，用户的手机号
 - `avatar`： `string`类型，用户的头像对应的url
@@ -493,6 +493,7 @@ Authorization: Basic Auth
 
 ```
 API_UNAUTHORIZED
+API_USER_NOT_FOUND
 ```
 
 <a name="get-followers"></a>
@@ -531,6 +532,7 @@ Authorization: Basic Auth
 
 ```
 API_UNAUTHORIZED
+API_USER_NOT_FOUND
 ```
 
 ----
@@ -552,7 +554,8 @@ API_UNAUTHORIZED
   	"orientation": <int orientation>,
   	"quality": <int quality>,
   	"status": <int status>,
-  	"is_banned": <bool is_banned>
+  	"is_banned": <bool is_banned>,
+  	"is_deleted": <bool is_deleted>,
   	"owner": <user owner>,
   	"visit_count": <int visit_count>,
   	"like_count": <int like_count>,
@@ -585,6 +588,7 @@ API_UNAUTHORIZED
 	- `1`：推流中
 	- `3`：已结束推流
 - `is_banned`： `bool`类型，频道是否已经被禁止
+- `is_deleted`： `bool`类型，频道是否已经被删除
 - `owner`：`user`类型（[定义](#user-definition)），频道的拥有者
 - `visit_count`： `int`类型，当前频道被点击的数目
 - `like_count`： `int`类型，当前频道被点赞的数目
@@ -690,7 +694,7 @@ API_MAX_CHANNEL_TOUCHED
 **请求**
 
 ```
-GET /channels/live?type=<type>&p=<p>&l=<l>
+GET /channels/live?p=<p>&l=<l>
 Authorization: Basic Auth
 ```
 
@@ -771,7 +775,7 @@ GET /channels/all?owner_id=<owner_id>&status=<status>&p=<p>&l=<l>
 Authorization: Basic Auth
 ```
 
-- `owner_id`：`int`类型，频道属主id，可选
+- `owner_id`：`int`类型，频道属主id，必选
 - `status`： `int`类型，频道状态。可选，默认为` publishing`和`published`，可选二者其一，具体可参考[频道状态](#channel-status)
 - `p`： `int`类型，分页中的页数page，默认为`1`
 - `l`： `int`类型，分页中的限制limit，默认为`10`
@@ -830,10 +834,7 @@ Authorization: Basic Auth
 API_UNAUTHORIZED
 API_CHANNEL_NOT_FOUND
 API_CHANNEL_INACCESSIBLE
-API_CHANNEL_ALREADY_FINISHED
 ```
-
-- `API_CHANNEL_ALREADY_FINISHED `：试图访问一个实际已经结束推流、但是业务上没有来得及记录的频道
 
 <a name="channel-stream-status"></a>
 ####  检查频道的流状态
@@ -1144,12 +1145,14 @@ Content-Type: application/json
 
 {
 	"content": <string content>,
-	"email": <string email>
+	"email": <string email>,
+	"mobile": <string mobile>
 }
 ```
 
 - `content`： `string`类型，反馈内容，必须
 - `email`： `string`类型，反馈人邮箱，必须
+- `mobile`： `string`类型，反馈人手机t，选填
 
 **成功**
 
@@ -1193,7 +1196,7 @@ API_BAD_REQUEST
 ####  获取通知列表
 本接口有两种使用方法：
 
-1. 请求时携带`all`参数并置为`1`，这样接口将返回**自用户注册时间**之后的所有消息；
+1. 请求时携带`all`参数并置为`1`，这样接口将返回**自用户注册时间**之后的所有消息，且此时不接受分页参数；
 2. 请求时不携带`all`参数，这样接口将只返回**上次调用该接口的时间**之后的消息；
 
 **请求**
