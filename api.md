@@ -117,6 +117,7 @@
 	- [类型声明: notify](#notify-definition)（新）
 	- [获取通知列表](#get-notifies)（新）
 	- [获取通知具体内容](#get-notify)（新）
+	- [获取七牛上传凭证](#get-uptoken)（新）
 - [推送相关](#push)（新）
 	- [新的直播推送](#new-channel-push)
 	- [新的通知推送](#new-notify-push)
@@ -183,11 +184,13 @@ POST /users/login
 Content-Type: application/json
 
 {
-	"auth_code": <string auth_code>
+	"auth_code": <string auth_code>,
+	"getui_cid": <string getui_cid>
 }
 ```
 
 - `auth_code`： `string`类型，OAuth成功后返回的`auth_code`，一经登录即作废。
+- `getui_cid `： `string`类型，app在初始化之后获得的个推`cid`（`clientid`）
 
 **成功**
 
@@ -1147,12 +1150,14 @@ Content-Type: application/json
 
 {
 	"content": <string content>,
-	"email": <string email>
+	"email": <string email>,
+	"mobile": <string mobile>
 }
 ```
 
 - `content`： `string`类型，反馈内容，必须
 - `email`： `string`类型，反馈人邮箱，必须
+- `mobile`： `string`类型，反馈人电话，可选
 
 **成功**
 
@@ -1243,13 +1248,48 @@ API_UNAUTHORIZED
 - `notify_id`：`int`类型，通知的id，必须
 - `user_id`： `int`类型，访问该通知的用户id，必须
 
+<a name="get-uptoken"></a>
+####  获取七牛上传凭证
+
+**请求**
+
+```
+GET /uptoken
+Authorization: Basic Auth
+```
+
+**成功**
+
+```
+{
+	"code": 2000,
+	"desc": "ok",
+	"uptoken": <string uptoken>
+}
+```
+
+- `uptoken `： `string`类型，七牛上传凭证。该凭证对应的策略中指定了当上传成功后七牛服务器返回的响应内容，为：
+
+	```
+	{
+		"url": <string url>
+	}
+	```
+	- `url`：`string`类型，资源的公网可访问地址
+
+**失败**
+
+```
+API_UNAUTHORIZED
+```
+
 <a name="push"></a>
 ### 推送相关
 
 推送目前接入`个推`，一律采用`透传消息`的形式，消息体为`json`格式，且一定包含`ptype`字段，具体的值在下面每个类型的推送消息中会有介绍。
 
 <a name="new-channel-push"></a>
-#### 新的直播推送
+####  新的直播推送
 
 `ptype` = `0`
 
@@ -1265,17 +1305,21 @@ API_UNAUTHORIZED
 - `owner_nickname`：`string`类型，直播用户的昵称
 
 <a name="new-notify-push"></a>
-#### 新的通知推送
+####  新的通知推送
 
 `ptype ` = `1`
 
 ```
 {
 	ptype: 1,
-	notify_id: <int notify_id>
+	notify_id: <int notify_id>，
+	title: <string title>,
+	content: <string content>
 }
 ```
 
 - `notify_id`：`int`类型，新的通知id
+- `title`：`string`类型，通知的标题
+- `content`：`string`类型，通知的内容
 
 
