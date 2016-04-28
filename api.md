@@ -17,10 +17,11 @@
 #### `POST`
 一般在操作服务器资源时使用。
 
-包含参数时，请求头需添加`Content-Type: application/json`，参数一律以 **JSON** 格式在请求体中传递，示例可参考**[更新我的用户信息](#update-my-info)**API。
+包含参数时，请求头需添加`Content-Type: application/json`，参数一律以 **JSON** 格式在请求体中传递，示例可参考**[根据手机验证码登录](#login_by_mobile)**API。
 
 <a name="authentication"></a>
 ### 鉴权
+> `TODO` 添加加密`Token`机制
 
 用户登录后的所有操作都需要经过鉴权，鉴权方式使用 **[HTTP Basic Auth](https://zh.wikipedia.org/wiki/HTTP%E5%9F%BA%E6%9C%AC%E8%AE%A4%E8%AF%81)**。
 
@@ -70,6 +71,7 @@
 |`API_MAX_CHANNEL_TOUCHED`|4031|touch maximum number of channels|达到最大频道数量|
 |`API_MESSAGE_TOO_FREQUENTLY`|4032|send meesage too frequently|发送消息频率太快|
 |`API_CHANNEL_INACCESSIBLE`|4033|channel is inaccessible|频道不处于`推流中`或`结束推流`的[状态](#channel-status)，不可访问|
+|`API_CHANNEL_ALREADY_FINISHED`|4034|channel is already finished|频道已经处于`街退推流`的[状态](#channel-status)，不可访问；这个响应码会在试图访问一个实际已经结束推流、但是业务上没有来得及记录的频道时抛出|
 |`API_USER_NOT_FOUND`|4041|user not found|用户未找到|
 |`API_CHANNEL_NOT_FOUND`|4042|channel not found|频道未找到|
 
@@ -115,6 +117,9 @@
 	- [类型声明: notify](#notify-definition)（新）
 	- [获取通知列表](#get-notifies)（新）
 	- [获取通知具体内容](#get-notify)（新）
+- [推送相关](#push)（新）
+	- [新的直播推送](#new-channel-push)
+	- [新的通知推送](#new-notify-push)
 
 ---
 
@@ -178,13 +183,11 @@ POST /users/login
 Content-Type: application/json
 
 {
-	"auth_code": <string auth_code>,
-	"getui_cid": <string getui_cid>
+	"auth_code": <string auth_code>
 }
 ```
 
-- `auth_code`： `string`类型，OAuth成功后返回的`auth_code`，一经登录即作废。必须
-- `getui_cid`： `string`类型，个推生成的cid。必须
+- `auth_code`： `string`类型，OAuth成功后返回的`auth_code`，一经登录即作废。
 
 **成功**
 
@@ -565,9 +568,7 @@ API_USER_NOT_FOUND
 	"is_liked": <bool is_liked>,
 	"live_time": <int live_time>,
 	"online_nums": <int online_nums>,
-	"playback": {
-		"hls": "xxxxx/hub/stream-id.m3u8?start=t&end=t"
-	},
+	"playback": <string playback>,
 	"live": {
 		"flv": "http://xxxxx/hub/stream-id.flv",
 		"hls": "http:/xxxxx/hub/stream-id.m3u8",
@@ -598,6 +599,7 @@ API_USER_NOT_FOUND
 - `is_liked`： `bool`类型，当前用户是否已点赞该频道
 - `live_time`： `int`类型，从直播开始到现在过去的秒数，如果不在直播中，为`null`
 - `online_nums`： `int`类型，当前观看直播的人数，如果不在直播中，为`null`
+- `playback `： `string`类型，回放地址，如果正在直播，为`null`
 
 <a name="channel-status"></a>
 **频道状态**
@@ -694,7 +696,7 @@ API_MAX_CHANNEL_TOUCHED
 **请求**
 
 ```
-GET /channels/live?p=<p>&l=<l>
+GET /channels/live?type=<type>&p=<p>&l=<l>
 Authorization: Basic Auth
 ```
 
@@ -775,7 +777,7 @@ GET /channels/all?owner_id=<owner_id>&status=<status>&p=<p>&l=<l>
 Authorization: Basic Auth
 ```
 
-- `owner_id`：`int`类型，频道属主id，必选
+- `owner_id`：`int`类型，频道属主id，可选
 - `status`： `int`类型，频道状态。可选，默认为` publishing`和`published`，可选二者其一，具体可参考[频道状态](#channel-status)
 - `p`： `int`类型，分页中的页数page，默认为`1`
 - `l`： `int`类型，分页中的限制limit，默认为`10`
@@ -1145,14 +1147,12 @@ Content-Type: application/json
 
 {
 	"content": <string content>,
-	"email": <string email>,
-	"mobile": <string mobile>
+	"email": <string email>
 }
 ```
 
 - `content`： `string`类型，反馈内容，必须
 - `email`： `string`类型，反馈人邮箱，必须
-- `mobile`： `string`类型，反馈人手机t，选填
 
 **成功**
 
@@ -1196,7 +1196,7 @@ API_BAD_REQUEST
 ####  获取通知列表
 本接口有两种使用方法：
 
-1. 请求时携带`all`参数并置为`1`，这样接口将返回**自用户注册时间**之后的所有消息，且此时不接受分页参数；
+1. 请求时携带`all`参数并置为`1`，这样接口将返回**自用户注册时间**之后的所有消息；
 2. 请求时不携带`all`参数，这样接口将只返回**上次调用该接口的时间**之后的消息；
 
 **请求**
@@ -1242,5 +1242,40 @@ API_UNAUTHORIZED
 
 - `notify_id`：`int`类型，通知的id，必须
 - `user_id`： `int`类型，访问该通知的用户id，必须
+
+<a name="push"></a>
+### 推送相关
+
+推送目前接入`个推`，一律采用`透传消息`的形式，消息体为`json`格式，且一定包含`ptype`字段，具体的值在下面每个类型的推送消息中会有介绍。
+
+<a name="new-channel-push"></a>
+#### 新的直播推送
+
+`ptype` = `0`
+
+```
+{
+	ptype: 0,
+	channel_id: <int channel_id>，
+	owner_nickname: <string owner_nickname>
+}
+```
+
+- `channel_id`：`int`类型，新的直播id
+- `owner_nickname`：`string`类型，直播用户的昵称
+
+<a name="new-notify-push"></a>
+#### 新的通知推送
+
+`ptype ` = `1`
+
+```
+{
+	ptype: 1,
+	notify_id: <int notify_id>
+}
+```
+
+- `notify_id`：`int`类型，新的通知id
 
 
