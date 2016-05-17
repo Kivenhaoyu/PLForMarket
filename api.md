@@ -1297,12 +1297,16 @@ API_UNAUTHORIZED
 {
 	ptype: 0,
 	channel_id: <int channel_id>，
-	owner_nickname: <string owner_nickname>
+	owner_nickname: <string owner_nickname>，
+	title: <string title>,
+	content: <string content>
 }
 ```
 
 - `channel_id`：`int`类型，新的直播id
 - `owner_nickname`：`string`类型，直播用户的昵称
+- `title`：`string`类型，通知的标题，仅在管理员推送时有该字段
+- `content`：`string`类型，通知的内容，仅在管理员推送时有该字段
 
 <a name="new-notify-push"></a>
 ####  新的通知推送
