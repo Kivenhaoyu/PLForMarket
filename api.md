@@ -723,7 +723,7 @@ Authorization: Basic Auth
 ```
 
 - `count`： `int`类型，获取到的频道数量
-- `channel`： `channel`类型，本次创建的频道信息，定义见[这里](#channel-definition)
+- `channel`： `channel`类型，定义见[这里](#channel-definition)
 
 **失败**
 
@@ -763,7 +763,7 @@ Authorization: Basic Auth
 ```
 
 - `count`：`int`类型，获取到的频道数量
-- `channel`：`channel`类型，本次创建的频道信息，定义见[这里](#channel-definition)
+- `channel`：`channel`类型，定义见[这里](#channel-definition)
 
 **失败**
 
@@ -802,7 +802,7 @@ Authorization: Basic Auth
 ```
 
 - `count`： `int`类型，获取到的频道数量
-- `channel`： `channel`类型，本次创建的频道信息，定义见[这里](#channel-definition)
+- `channel`： `channel`类型，定义见[这里](#channel-definition)
 
 **失败**
 
@@ -831,7 +831,38 @@ Authorization: Basic Auth
 }
 ```
 
-- `channel`： `channel`类型，本次创建的频道信息，定义见[这里](#channel-definition)
+- `channel`： `channel`类型，定义见[这里](#channel-definition)
+
+**失败**
+
+```
+API_UNAUTHORIZED
+API_CHANNEL_NOT_FOUND
+API_CHANNEL_INACCESSIBLE
+```
+
+<a name="access-channel"></a>
+####  退出指定频道
+**请求**
+
+```
+POST /channels/leave/<int id>
+Authorization: Basic Auth
+```
+
+- `id`： `int`类型，要退出的频道id
+
+**成功**
+
+```
+{
+	"code": 2000,
+	"desc": "ok",
+	"channel": <channel channel>
+}
+```
+
+- `channel`： `channel`类型，定义见[这里](#channel-definition)
 
 **失败**
 
